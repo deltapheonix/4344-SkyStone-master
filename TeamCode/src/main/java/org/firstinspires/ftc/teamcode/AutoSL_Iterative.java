@@ -85,12 +85,15 @@ public class AutoSL_Iterative extends OpMode
         // to 'get' must correspond to the names assigned during the robot configuration
         // step (using the FTC Robot Controller app on the phone).
         // jwk: create motor/drive variables with the correct names for each of the four motors
+        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
+        parameters.angleUnit           = BNO055IMU.AngleUnit.DEGREES;
+        parameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
         leftDriveFront = hardwareMap.get(DcMotor.class, "lDriveFront");
         rightDriveFront = hardwareMap.get(DcMotor.class, "rDriveFront");
         leftDriveRear = hardwareMap.get(DcMotor.class, "lDriveRear");
         rightDriveRear = hardwareMap.get(DcMotor.class, "rDriveRear");
-
-
+        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        imu.initialize(parameters);
         leftDriveFront.setDirection(DcMotor.Direction.REVERSE); // Port 3
         rightDriveFront.setDirection(DcMotor.Direction.FORWARD); // Port 2
         leftDriveRear.setDirection(DcMotor.Direction.REVERSE); // Port 0
@@ -98,6 +101,7 @@ public class AutoSL_Iterative extends OpMode
 
         angles   = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         start_hdg = angles.firstAngle;
+        start_hdg = 0.0;
     }
 
     /*
@@ -133,7 +137,7 @@ public class AutoSL_Iterative extends OpMode
         double rotate = 0.0;
         final double Khdg = 0.01;
 
-        final int sector = 1; // move to right for this test case
+        final int sector = 2; // move to right for this test case
 
 
         // Choose to drive using either Tank Mode, or POV Mode
