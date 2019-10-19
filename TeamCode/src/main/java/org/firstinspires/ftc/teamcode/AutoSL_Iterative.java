@@ -64,10 +64,10 @@ public class AutoSL_Iterative extends OpMode
 {
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
-    private DcMotor leftDriveFwd = null;
-    private DcMotor leftDriveRev = null;
-    private DcMotor rightDriveFwd= null;
-    private DcMotor rightDriveRev = null;
+    private DcMotor leftDriveFront = null;
+    private DcMotor leftDriveRear = null;
+    private DcMotor rightDriveFront= null;
+    private DcMotor rightDriveRear = null;
 
     private BNO055IMU imu;
 
@@ -85,16 +85,16 @@ public class AutoSL_Iterative extends OpMode
         // to 'get' must correspond to the names assigned during the robot configuration
         // step (using the FTC Robot Controller app on the phone).
         // jwk: create motor/drive variables with the correct names for each of the four motors
-        leftDriveFwd = hardwareMap.get(DcMotor.class, "lDriveFwd");
-        rightDriveFwd = hardwareMap.get(DcMotor.class, "rDriveFwd");
-        leftDriveRev = hardwareMap.get(DcMotor.class, "lDriveRev");
-        rightDriveRev = hardwareMap.get(DcMotor.class, "rDriveRev");
+        leftDriveFront = hardwareMap.get(DcMotor.class, "lDriveFront");
+        rightDriveFront = hardwareMap.get(DcMotor.class, "rDriveFront");
+        leftDriveRear = hardwareMap.get(DcMotor.class, "lDriveRear");
+        rightDriveRear = hardwareMap.get(DcMotor.class, "rDriveRear");
 
 
-        leftDriveFwd.setDirection(DcMotor.Direction.REVERSE);
-        rightDriveFwd.setDirection(DcMotor.Direction.FORWARD);
-        leftDriveRev.setDirection(DcMotor.Direction.REVERSE);
-        rightDriveRev.setDirection(DcMotor.Direction.FORWARD);
+        leftDriveFront.setDirection(DcMotor.Direction.REVERSE); // Port 3
+        rightDriveFront.setDirection(DcMotor.Direction.FORWARD); // Port 2
+        leftDriveRear.setDirection(DcMotor.Direction.REVERSE); // Port 0
+        rightDriveRear.setDirection(DcMotor.Direction.FORWARD); // Port 1
 
         angles   = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         start_hdg = angles.firstAngle;
@@ -208,10 +208,10 @@ public class AutoSL_Iterative extends OpMode
 
     // perform .setPower here in method. Ensures that setPower is called only once per loop()
     public void setMotorPower ( double vRF, double vLF, double vRR, double vLR ){
-        rightDriveFwd.setPower(vRF);
-        leftDriveFwd.setPower(vLF);
-        rightDriveRev.setPower(vRR);
-        leftDriveRev.setPower(vLR);
+        rightDriveFront.setPower(vRF);
+        leftDriveFront.setPower(vLF);
+        rightDriveRear.setPower(vRR);
+        leftDriveRear.setPower(vLR);
     }
 
 }
