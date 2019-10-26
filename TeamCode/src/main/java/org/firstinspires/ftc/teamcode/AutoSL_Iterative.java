@@ -133,11 +133,11 @@ public class AutoSL_Iterative extends OpMode
         double curr_hdg;
         final double FWD = 1.0;
         final double REV = -1.0;
-        double speed = 0.5; // arbitrary, just don't make it too close to 1.0
+        double speed = 0.50; // arbitrary, just don't make it too close to 1.0
         double rotate = 0.0;
-        final double Khdg = 0.01;
+        final double Khdg = 0.05;
 
-        final int sector = 2; // move to right for this test case
+        final int sector = 1; // move to right for this test case
 
 
         // Choose to drive using either Tank Mode, or POV Mode
@@ -189,10 +189,15 @@ public class AutoSL_Iterative extends OpMode
 
         }
 
-        vRightFront = Range.clip(vRightFront + rotate, -1.0, 1.0);
-        vLeftFront = Range.clip(vLeftFront - rotate, -1.0, 1.0);
-        vRightRear = Range.clip(vRightRear + rotate, -1.0, 1.0);
-        vLeftRear = Range.clip(vLeftRear - rotate, -1.0, 1.0);
+        //vRightFront = Range.clip(vRightFront - rotate, -1.0, 1.0);
+        //vLeftFront = Range.clip(vLeftFront + rotate, -1.0, 1.0);
+        //vRightRear = Range.clip(vRightRear - rotate, -1.0, 1.0);
+        //vLeftRear = Range.clip(vLeftRear + rotate, -1.0, 1.0);
+
+        vRightFront = Range.clip(vRightFront + 0, -1.0, 1.0);
+        vLeftFront = Range.clip(vLeftFront + rotate, -1.0, 1.0);
+        vRightRear = Range.clip(vRightRear - rotate, -1.0, 1.0);
+        vLeftRear = Range.clip(vLeftRear + 0, -1.0, 1.0);
 
         setMotorPower(vRightFront, vLeftFront, vRightRear, vLeftRear);
 
