@@ -77,19 +77,22 @@ public class AutoLoadingZone_Iterative extends OpMode
     private Orientation angles;
     private double desiredHdg;
 
-    private DistanceSensor sens2mDist;
-    private DigitalChannel digitalTouch;
+    private DistanceSensor sens2mDist; // 2m Distance sensor on rear of robot facing aft
+    private DigitalChannel digitalTouch; // touch sensor somewhere to select starting Alliance color
 
-    private ColorSensor rColorSensor;
-    private ColorSensor lColorSensor;
+    private ColorSensor rColorSensor; // Color-Distance sensor on right of robot to detect Stones
+    private ColorSensor lColorSensor; // Color-Distance sensor on left of robot to detect Stones
 
-    private DistanceSensor rDistSensor;
-    private DistanceSensor lDistSensor;
+    private DistanceSensor rDistSensor; // the 'Distance' part of the Color-Distance sensor
+    private DistanceSensor lDistSensor; // the 'Distance' part of the Color-Distance sensor
 
     private final double FWD = 1.0;
     private final double REV = -1.0;
 
-    private boolean BLUE_START;
+    private boolean BLUE_START; // flag that if true means we are starting at Blue Alliance side
+
+    // make the Motor power variables global
+    double vRightFront, vLeftFront, vRightRear, vLeftRear;
 
 
     /*
@@ -103,39 +106,46 @@ public class AutoLoadingZone_Iterative extends OpMode
         // to 'get' must correspond to the names assigned during the robot configuration
         // step (using the FTC Robot Controller app on the phone).
         // jwk: create motor/drive variables with the correct names for each of the four motors
+
+        // setup IMU
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.angleUnit           = BNO055IMU.AngleUnit.DEGREES;
         parameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
+        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        imu.initialize(parameters);
+
+        // setup Drive motors
         leftDriveFront = hardwareMap.get(DcMotor.class, "lDriveFront");
         rightDriveFront = hardwareMap.get(DcMotor.class, "rDriveFront");
         leftDriveRear = hardwareMap.get(DcMotor.class, "lDriveRear");
         rightDriveRear = hardwareMap.get(DcMotor.class, "rDriveRear");
-
-        sens2mDist = hardwareMap.get(DistanceSensor.class, "sens2mDist");
-
-        digitalTouch = hardwareMap.get(DigitalChannel.class, "touch_sensor");
-        digitalTouch.setMode(DigitalChannel.Mode.INPUT);
-
-        rColorSensor = hardwareMap.get(ColorSensor.class, "r_color_dist");
-        rDistSensor = hardwareMap.get(DistanceSensor.class, "r_color_dist");
-
-        lColorSensor = hardwareMap.get(ColorSensor.class, "l_color_dist");
-        lDistSensor = hardwareMap.get(DistanceSensor.class, "l_color_dist");
-
-        imu = hardwareMap.get(BNO055IMU.class, "imu");
-        imu.initialize(parameters);
-
+        // set correct orientation of Drive motors
         leftDriveFront.setDirection(DcMotor.Direction.REVERSE); // Port 3
         rightDriveFront.setDirection(DcMotor.Direction.FORWARD); // Port 2
         leftDriveRear.setDirection(DcMotor.Direction.REVERSE); // Port 0
         rightDriveRear.setDirection(DcMotor.Direction.FORWARD); // Port 1
+
+        // setup 2m Distance sensor
+        sens2mDist = hardwareMap.get(DistanceSensor.class, "sens2mDist");
+
+        // setup Touch sensor
+        digitalTouch = hardwareMap.get(DigitalChannel.class, "touch_sensor");
+        digitalTouch.setMode(DigitalChannel.Mode.INPUT);
+
+        // setup L and R Color-Distance sensors
+        rColorSensor = hardwareMap.get(ColorSensor.class, "r_color_dist");
+        rDistSensor = hardwareMap.get(DistanceSensor.class, "r_color_dist");
+        lColorSensor = hardwareMap.get(ColorSensor.class, "l_color_dist");
+        lDistSensor = hardwareMap.get(DistanceSensor.class, "l_color_dist");
+
+        // set initial state of target hdg-- assumes 0 deg no matter what orientation it starts in
         desiredHdg = 0.0; // assume imu initialized at 0 deg heading angle
 
         if( digitalTouch.getState() ) { // if the digital channel returns true, the button is unpressed.
-            BLUE_START = false; // if button is unpressed, then starting from Red Alliance side
+            BLUE_START = false; // if button is unpressed, then starting on Red Alliance side
         }
         else {
-            BLUE_START = true; // if button is pressed, then starting from Blue Alliance side
+            BLUE_START = true; // if button is pressed, then starting on Blue Alliance side
         }
 
     }
@@ -161,81 +171,79 @@ public class AutoLoadingZone_Iterative extends OpMode
      */
     @Override
     public void loop() {
-        // Setup a variable for each drive wheel to save power level for telemetry
-        double vRightFront;
-        double vLeftFront;
-        double vRightRear;
-        double vLeftRear;
+        // setup some constants
+        final double TIME_AT_WALL = 2.0;
+        final double TIME_TO_PAUSE = 1.0;
+        final double TIME_TO_BUILD_ZONE = 5; // assume it takes 5s to drive from LZ to BZ
+        final double LENGTH_OF_ROBOT = 16; // inches from front to back of robot
+        final double LENGTH_OF_STONE = 8;
+        final double DIST_FROM_START = 48 - LENGTH_OF_ROBOT - 8; // 4ft - bot length - 8in (to Stone)
+        final double DIST_BETWEEN_SENSORS = 8; // distance between 2m Dist sensor and ColorDist sensors
+        final double DIST_HALF_BLOCK = 4;
+        final double SCALE_FACTOR = 255;
+        final double RED_THRESHHOLD = 100; // need to adjust these for Skystone RGB values
+        final double GREEN_THRESHHOLD = 100;
+        final double BLUE_THRESHHOLD = 100;
+        final double Khdg = 0.05;
+        final int PERSISTANCE = 3;
+        final int DRIVE_FWD = 1;
+        final int DRIVE_REV = 2;
+        final int ROTATE_LEFT = 3;
+        final int ROTATE_RIGHT = 4;
+        final int STOP = 5;
+
+        // setup some variables and initialize, if needed
         double currHdg;
         double speed = 0.5; // arbitrary, just don't make it too close to 1.0
         double rotate = 0.0;
-        final double Khdg = 0.05;
-        int driveDir = 5;
+        int driveDir = STOP; // start in the 'STOP'ped state
         int masterMode = 0;
-        double TIME_AT_WALL = 2.0;
-        double TIME_TO_PAUSE = 1.0;
-        double TIME_TO_BUILD_ZONE = 5; // assume it takes 5s to drive from LZ to BZ
-        double LENGTH_OF_ROBOT = 16; // inches from front to back of robot
-        double DIST_FROM_START = 48 - LENGTH_OF_ROBOT - 8; // 4ft - bot length - 8in (to Stone)
-        double DIST_BETWEEN_SENSORS = 8; // distance between 2m Dist sensor and ColorDist sensors
-        double DIST_HALF_BLOCK = 4;
+
         double distFromAudienceWall = 48 - DIST_BETWEEN_SENSORS - DIST_HALF_BLOCK;
-        double persist = 0.0;
-        final double PERSISTANCE = 3;
         double targetStone = 1;
         double targetDist;
-        float hsvValues[] = {0F, 0F, 0F};
-        final double SCALE_FACTOR = 255;
-        double RED_THRESHHOLD = 100; // need to adjust these for Skystone RGB values
-        double GREEN_THRESHHOLD = 100;
-        double BLUE_THRESHHOLD = 100;
         boolean skyStoneFound = false;
         double skyStonePos = 0;
+        int persist = 0;
 
         // determine the current heading angle
         angles   = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         currHdg = angles.firstAngle;
         rotate = rotate + Khdg * (currHdg - desiredHdg);
 
-        // Now, set motor speeds based on sector stick is in
+        // Now, set motor speeds based on desired drive motion
         switch (driveDir) {
-            case 1: // rotate right
-                vRightFront = REV * speed;
-                vRightRear = REV * speed;
-                vLeftFront = FWD * speed;
-                vLeftRear = FWD * speed;
-                break;
-
-            case 2: // move forward
+            case DRIVE_FWD: // move forward
                 vRightFront = FWD * speed;
                 vRightRear = FWD * speed;
                 vLeftFront = FWD * speed;
                 vLeftRear = FWD * speed;
-                vRightFront = Range.clip(vRightFront - rotate, -1.0, 1.0);
-                vRightRear = Range.clip(vRightRear - rotate, -1.0, 1.0);
-                vLeftFront = Range.clip(vLeftFront + rotate, -1.0, 1.0);
-                vLeftRear = Range.clip(vLeftRear + rotate, -1.0, 1.0);
+                adjustMotorPower( rotate );
                 break;
 
-            case 3: // rotate left
+            case DRIVE_REV: // move reverse
+                vRightFront = REV * speed;
+                vRightRear = REV * speed;
+                vLeftFront = REV * speed;
+                vLeftRear = REV * speed;
+                adjustMotorPower( rotate );
+                break;
+
+            case ROTATE_LEFT: // rotate left
                 vRightFront = FWD * speed;
                 vRightRear = FWD * speed;
                 vLeftFront = REV * speed;
                 vLeftRear = REV * speed;
                 break;
 
-            case 4: // move reverse
+            case ROTATE_RIGHT: // rotate right
                 vRightFront = REV * speed;
                 vRightRear = REV * speed;
-                vLeftFront = REV * speed;
-                vLeftRear = REV * speed;
-                vRightFront = Range.clip(vRightFront - rotate, -1.0, 1.0);
-                vRightRear = Range.clip(vRightRear - rotate, -1.0, 1.0);
-                vLeftFront = Range.clip(vLeftFront + rotate, -1.0, 1.0);
-                vLeftRear = Range.clip(vLeftRear + rotate, -1.0, 1.0);
+                vLeftFront = FWD * speed;
+                vLeftRear = FWD * speed;
                 break;
 
-            case 5: // stop
+            case STOP: // stop
                 vRightFront = 0.0;
                 vLeftFront = 0.0;
                 vRightRear = 0.0;
@@ -250,13 +258,16 @@ public class AutoLoadingZone_Iterative extends OpMode
                 break;
         }
 
+        // now, set the Drive motor power
         setMotorPower(vRightFront, vLeftFront, vRightRear, vLeftRear);
-        targetDist = distFromAudienceWall - (targetStone - 1)*8; // set target distance for next stone
+
+        // determine distance to next targeted Stone
+        targetDist = distFromAudienceWall - (targetStone - 1) * LENGTH_OF_STONE; // set target distance for next stone
 
         switch (masterMode) {
             case 0: // hang out at start for a short period of time
                 if( runtime.seconds() > TIME_AT_WALL ) {
-                    driveDir = 2; // move FWD
+                    driveDir = DRIVE_FWD; // move FWD
                     masterMode++;
                     runtime.reset();
                 }
@@ -267,7 +278,7 @@ public class AutoLoadingZone_Iterative extends OpMode
                     persist++; // need at least 3 in a row
                 }
                 else {
-                    persist = 0.0;
+                    persist = 0;
                 }
                 if( persist >= PERSISTANCE ) {
                     driveDir = 5; // stop moving
@@ -336,16 +347,16 @@ public class AutoLoadingZone_Iterative extends OpMode
 
             case 7: // check to see if it's a Skystone
                 if( BLUE_START ) {
-                    if( rColorSensor.red() < RED_THRESHHOLD
-                            && rColorSensor.green() < GREEN_THRESHHOLD
-                            && rColorSensor.blue() < BLUE_THRESHHOLD ) {
+                    if( rColorSensor.red()*SCALE_FACTOR < RED_THRESHHOLD
+                            && rColorSensor.green()*SCALE_FACTOR < GREEN_THRESHHOLD
+                            && rColorSensor.blue()*SCALE_FACTOR < BLUE_THRESHHOLD ) {
                         skyStoneFound = true;
                     }
                 }
                 else {
-                    if( lColorSensor.red() < RED_THRESHHOLD
-                            && lColorSensor.green() < GREEN_THRESHHOLD
-                            && lColorSensor.blue() < BLUE_THRESHHOLD ) {
+                    if( lColorSensor.red()*SCALE_FACTOR < RED_THRESHHOLD
+                            && lColorSensor.green()*SCALE_FACTOR < GREEN_THRESHHOLD
+                            && lColorSensor.blue()*SCALE_FACTOR < BLUE_THRESHHOLD ) {
                         skyStoneFound = true;
                     }
                 }
@@ -432,6 +443,13 @@ public class AutoLoadingZone_Iterative extends OpMode
         leftDriveFront.setPower(vLF);
         rightDriveRear.setPower(vRR);
         leftDriveRear.setPower(vLR);
+    }
+
+    public void adjustMotorPower ( double rotationBias ){
+        vRightFront = Range.clip(vRightFront - rotationBias, -1.0, 1.0);
+        vRightRear = Range.clip(vRightRear - rotationBias, -1.0, 1.0);
+        vLeftFront = Range.clip(vLeftFront + rotationBias, -1.0, 1.0);
+        vLeftRear = Range.clip(vLeftRear + rotationBias, -1.0, 1.0);
     }
 
 }
