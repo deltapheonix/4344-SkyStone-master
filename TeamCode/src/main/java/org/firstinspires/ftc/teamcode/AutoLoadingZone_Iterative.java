@@ -384,24 +384,14 @@ public class AutoLoadingZone_Iterative extends OpMode
                 }
                 break;
 
-            case 50: // pick up Skystone
+            case 50: // MODE: pick up Skystone
                 // need to add code to pick-up Skystone; do nothing until h/w is implemented
-                masterMode++;
-                break;
-
-            case 51: // check to see if we have reached last stone
-                // for now, just continue to next stone
-                if( targetStone > 6 ) { // can't go past 6th Stone
-                    masterMode = 100; // go to Building Zone and stay
-                }
-                else {
-                    masterMode = 90; // move to Building Zone, drop Stone, then come back
-                }
-                driveDir = DRIVE_FWD; // move forward
+                driveDir = DRIVE_FWD;
+                masterMode = 90;
                 runtime.reset();
                 break;
 
-            case 90: // drop Stone in Building Zone
+            case 90: // MODE: drive to Building Zone
                 if( runtime.seconds() > TIME_TO_BUILD_ZONE ) {
                     driveDir = STOP; // stop once in building zone
                     masterMode++;
@@ -409,10 +399,15 @@ public class AutoLoadingZone_Iterative extends OpMode
                 }
                 break;
 
-            case 91:
+            case 91: // while in BZ, determine if we need to go back for another Skystone
                 if( runtime.seconds() > TIME_TO_PAUSE ) {
-                    driveDir = DRIVE_REV; // move in reverse back to LZ
-                    masterMode++;
+                    if( skyStonePos > 3 ){ // if Skystone is 4-6, then this needs to be last pass
+                        masterMode = 999; // stay put in BZ if we have delivered second Skystone
+                    }
+                    else {
+                        driveDir = DRIVE_REV; // move in reverse back to LZ
+                        masterMode++;
+                    }
                     runtime.reset();
                 }
                 break;
@@ -425,20 +420,12 @@ public class AutoLoadingZone_Iterative extends OpMode
                 }
                 break;
 
-            case 100:
-                if( runtime.seconds() > TIME_TO_BUILD_ZONE ) {
-                    driveDir = STOP; // stop once in building zone
-                    masterMode = 999;
-                    runtime.reset();
-                }
-                break;
-
             case 999: // we're done!
                 driveDir = STOP; // stop
                 break;
 
             default:
-                stop(); // something went woefully wrong
+                driveDir = STOP; // if nothing to switch, then STOP (should never get here!)
         }
 
     }
