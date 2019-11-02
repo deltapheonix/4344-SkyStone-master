@@ -92,7 +92,7 @@ public class AutoLoadingZone_Iterative extends OpMode
     private boolean BLUE_START; // flag that if true means we are starting at Blue Alliance side
 
     // make the Motor power variables global
-    double vRightFront, vLeftFront, vRightRear, vLeftRear;
+    private double vRightFront, vLeftFront, vRightRear, vLeftRear;
 
 
     /*
@@ -180,11 +180,15 @@ public class AutoLoadingZone_Iterative extends OpMode
         final double DIST_FROM_START = 48 - LENGTH_OF_ROBOT - 8; // 4ft - bot length - 8in (to Stone)
         final double DIST_BETWEEN_SENSORS = 8; // distance between 2m Dist sensor and ColorDist sensors
         final double DIST_HALF_BLOCK = 4;
+        final double FIRST_STONE_DIST = 48 - DIST_BETWEEN_SENSORS - DIST_HALF_BLOCK;
+        // Color sensor constants
         final double SCALE_FACTOR = 255;
         final double RED_THRESHHOLD = 100; // need to adjust these for Skystone RGB values
         final double GREEN_THRESHHOLD = 100;
         final double BLUE_THRESHHOLD = 100;
+        // heading gain
         final double Khdg = 0.05;
+        // drive mode constants
         final int PERSISTANCE = 3;
         final int DRIVE_FWD = 1;
         final int DRIVE_REV = 2;
@@ -199,7 +203,6 @@ public class AutoLoadingZone_Iterative extends OpMode
         int driveDir = STOP; // start in the 'STOP'ped state
         int masterMode = 0;
 
-        double distFromAudienceWall = 48 - DIST_BETWEEN_SENSORS - DIST_HALF_BLOCK;
         double targetStone = 1;
         double targetDist;
         boolean skyStoneFound = false;
@@ -261,13 +264,13 @@ public class AutoLoadingZone_Iterative extends OpMode
         // now, set the Drive motor power
         setMotorPower(vRightFront, vLeftFront, vRightRear, vLeftRear);
 
-        // determine distance to next targeted Stone
-        targetDist = distFromAudienceWall - (targetStone - 1) * LENGTH_OF_STONE; // set target distance for next stone
+        // determine distance from audience wall to next targeted Stone
+        targetDist = FIRST_STONE_DIST - (targetStone - 1) * LENGTH_OF_STONE; // set target distance for next stone
 
         switch (masterMode) {
             case 0: // hang out at start for a short period of time
                 if( runtime.seconds() > TIME_AT_WALL ) {
-                    driveDir = DRIVE_FWD; // move FWD
+                    driveDir = DRIVE_FWD;
                     masterMode++;
                     runtime.reset();
                 }
@@ -281,7 +284,7 @@ public class AutoLoadingZone_Iterative extends OpMode
                     persist = 0;
                 }
                 if( persist >= PERSISTANCE ) {
-                    driveDir = 5; // stop moving
+                    driveDir = STOP;
                     masterMode++;
                     runtime.reset();
                     persist = 0;
@@ -291,10 +294,10 @@ public class AutoLoadingZone_Iterative extends OpMode
             case 2:
                 if( runtime.seconds() > TIME_TO_PAUSE ) {
                     if( BLUE_START ) {
-                        driveDir = 2; // rotate left
+                        driveDir = ROTATE_LEFT;
                     }
                     else {
-                        driveDir = 1; // rotate right
+                        driveDir = ROTATE_RIGHT;
                     }
                     masterMode++;
                     runtime.reset();
@@ -303,14 +306,14 @@ public class AutoLoadingZone_Iterative extends OpMode
 
             case 3: // rotate until bot has rotated 90 deg from start
                 if( currHdg >= 90 || currHdg <=-90 ) {
-                    driveDir = 5; // stop rotating
+                    driveDir = STOP; // stop rotating
                     masterMode++;
                     runtime.reset();
-                    if( BLUE_START ) { // set new target heading depending on Alliance color
-                        desiredHdg = 90;
+                    if( BLUE_START ) { // set new target heading based on starting Alliance color
+                        desiredHdg = 90; // 90deg from starting heading
                     }
                     else {
-                        desiredHdg = -90;
+                        desiredHdg = -90; // -90deg from starting heading
                     }
                 }
                 break;
@@ -324,24 +327,34 @@ public class AutoLoadingZone_Iterative extends OpMode
 
             case 5: // set the direction to move to target stone
                 if( sens2mDist.getDistance(DistanceUnit.INCH) < targetDist ) {
-                    driveDir = 2; // move forward
+                    driveDir = DRIVE_FWD;
                 }
                 else {
-                    driveDir = 4; // move in reverse
+                    driveDir = DRIVE_REV;
                 }
                 masterMode++;
                 break;
 
             case 6: // stop when at target stone
-                if( driveDir == 2 ) {
+                if( driveDir == DRIVE_FWD ) {
                     if( sens2mDist.getDistance(DistanceUnit.INCH) >= targetDist ) {
-                        driveDir = 5; // stop moving
+                        persist++;
+                    }
+                    else {
+                        persist = 0; // reset the persistence counter
                     }
                 }
-                if( driveDir == 4 ) {
+                if( driveDir == DRIVE_REV ) {
                     if( sens2mDist.getDistance(DistanceUnit.INCH) <= targetDist ) {
-                        driveDir = 5; // stop moving
+                        persist++;
                     }
+                    else {
+                        persist = 0; // reset the persistence counter
+                    }
+                }
+                if( persist >= PERSISTANCE ) { // once distance target is solidly achieved, stop
+                    driveDir = STOP;
+                    masterMode++;
                 }
                 break;
 
@@ -384,13 +397,13 @@ public class AutoLoadingZone_Iterative extends OpMode
                 else {
                     masterMode = 90; // move to Building Zone, drop Stone, then come back
                 }
-                driveDir = 2; // move forward
+                driveDir = DRIVE_FWD; // move forward
                 runtime.reset();
                 break;
 
             case 90: // drop Stone in Building Zone
                 if( runtime.seconds() > TIME_TO_BUILD_ZONE ) {
-                    driveDir = 5; // stop once in building zone
+                    driveDir = STOP; // stop once in building zone
                     masterMode++;
                     runtime.reset();
                 }
@@ -398,15 +411,15 @@ public class AutoLoadingZone_Iterative extends OpMode
 
             case 91:
                 if( runtime.seconds() > TIME_TO_PAUSE ) {
-                    driveDir = 4; // move in reverse back to LZ
+                    driveDir = DRIVE_REV; // move in reverse back to LZ
                     masterMode++;
                     runtime.reset();
                 }
                 break;
 
-            case 92:
+            case 92: // drive back to Loading Zone
                 if( runtime.seconds() > TIME_TO_BUILD_ZONE ) {
-                    driveDir = 5; // stop once in building zone
+                    driveDir = STOP; // stop once in building zone
                     masterMode = 5; // move to next Skystone
                     runtime.reset();
                 }
@@ -414,14 +427,14 @@ public class AutoLoadingZone_Iterative extends OpMode
 
             case 100:
                 if( runtime.seconds() > TIME_TO_BUILD_ZONE ) {
-                    driveDir = 5; // stop once in building zone
+                    driveDir = STOP; // stop once in building zone
                     masterMode = 999;
                     runtime.reset();
                 }
                 break;
 
             case 999: // we're done!
-                driveDir = 5; // stop
+                driveDir = STOP; // stop
                 break;
 
             default:
