@@ -134,9 +134,9 @@ public class AutoLoadingZone_Iterative extends OpMode
 
         // setup L and R Color-Distance sensors
         rColorSensor = hardwareMap.get(ColorSensor.class, "r_color_dist");
-        rDistSensor = hardwareMap.get(DistanceSensor.class, "r_color_dist");
+        // rDistSensor = hardwareMap.get(DistanceSensor.class, "r_color_dist");
         lColorSensor = hardwareMap.get(ColorSensor.class, "l_color_dist");
-        lDistSensor = hardwareMap.get(DistanceSensor.class, "l_color_dist");
+        // lDistSensor = hardwareMap.get(DistanceSensor.class, "l_color_dist");
 
         // set initial state of target hdg-- assumes 0 deg no matter what orientation it starts in
         desiredHdg = 0.0; // assume imu initialized at 0 deg heading angle
@@ -172,12 +172,13 @@ public class AutoLoadingZone_Iterative extends OpMode
     @Override
     public void loop() {
         // setup some constants
+        final double DESIRED_STONE_OFFSET = 8; // wanna be XX in from first Stone after start
         final double TIME_AT_WALL = 2.0;
         final double TIME_TO_PAUSE = 1.0;
         final double TIME_TO_BUILD_ZONE = 5; // assume it takes 5s to drive from LZ to BZ
         final double LENGTH_OF_ROBOT = 16; // inches from front to back of robot
         final double LENGTH_OF_STONE = 8;
-        final double DIST_FROM_START = 48 - LENGTH_OF_ROBOT - 8; // 4ft - bot length - 8in (to Stone)
+        final double DIST_FROM_START = 48 - LENGTH_OF_ROBOT - DESIRED_STONE_OFFSET; // 4ft - bot length - 8in (to Stone)
         final double DIST_BETWEEN_SENSORS = 8; // distance between 2m Dist sensor and ColorDist sensors
         final double DIST_HALF_BLOCK = 4;
         final double FIRST_STONE_DIST = 48 - DIST_BETWEEN_SENSORS - DIST_HALF_BLOCK;
@@ -229,7 +230,7 @@ public class AutoLoadingZone_Iterative extends OpMode
                 vRightRear = REV * speed;
                 vLeftFront = REV * speed;
                 vLeftRear = REV * speed;
-                adjustMotorPower( rotate );
+                adjustMotorPower( -rotate );
                 break;
 
             case ROTATE_LEFT: // rotate left
@@ -246,7 +247,7 @@ public class AutoLoadingZone_Iterative extends OpMode
                 vLeftRear = FWD * speed;
                 break;
 
-            case STOP: // stop
+            case STOP: // hold yer horses!
                 vRightFront = 0.0;
                 vLeftFront = 0.0;
                 vRightRear = 0.0;
@@ -267,6 +268,7 @@ public class AutoLoadingZone_Iterative extends OpMode
         // determine distance from audience wall to next targeted Stone
         targetDist = FIRST_STONE_DIST - (targetStone - 1) * LENGTH_OF_STONE; // set target distance for next stone
 
+        // now, switch modes to work through the motions of picking up/dropping off Skystones
         switch (masterMode) {
             case 0: // hang out at start for a short period of time
                 if( runtime.seconds() > TIME_AT_WALL ) {
@@ -295,9 +297,11 @@ public class AutoLoadingZone_Iterative extends OpMode
                 if( runtime.seconds() > TIME_TO_PAUSE ) {
                     if( BLUE_START ) {
                         driveDir = ROTATE_LEFT;
+                        desiredHdg = 90;
                     }
                     else {
                         driveDir = ROTATE_RIGHT;
+                        desiredHdg = -90;
                     }
                     masterMode++;
                     runtime.reset();
@@ -305,18 +309,12 @@ public class AutoLoadingZone_Iterative extends OpMode
                 break;
 
             case 3: // rotate until bot has rotated 90 deg from start
-                if( currHdg >= 90 || currHdg <=-90 ) {
-                    driveDir = STOP; // stop rotating
+                if( Math.abs(currHdg) >= Math.abs(desiredHdg) ) {
+                    driveDir = STOP;
                     masterMode++;
                     runtime.reset();
-                    if( BLUE_START ) { // set new target heading based on starting Alliance color
-                        desiredHdg = 90; // 90deg from starting heading
-                    }
-                    else {
-                        desiredHdg = -90; // -90deg from starting heading
-                    }
                 }
-                break;
+              break;
 
             case 4: // pause for a bit after rotating
                 if( runtime.seconds() > TIME_TO_PAUSE ) {
