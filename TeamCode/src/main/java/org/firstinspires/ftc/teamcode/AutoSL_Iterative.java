@@ -133,11 +133,11 @@ public class AutoSL_Iterative extends OpMode
         double curr_hdg;
         final double FWD = 1.0;
         final double REV = -1.0;
-        double speed = 0.50; // arbitrary, just don't make it too close to 1.0
+        double speed = 0.05; // arbitrary, just don't make it too close to 1.0
         double rotate = 0.0;
         final double Khdg = 0.05;
 
-        final int sector = 1; // move to right for this test case
+        int sector = 1; // move to right for this test case
 
 
         // Choose to drive using either Tank Mode, or POV Mode
@@ -201,7 +201,7 @@ public class AutoSL_Iterative extends OpMode
 
         setMotorPower(vRightFront, vLeftFront, vRightRear, vLeftRear);
 
-        if( runtime.seconds() >= 10 ) {
+        if( runtime.seconds() >= 1 ) {
             setMotorPower(0.0, 0.0, 0.0, 0.0);
             stop();
         }
