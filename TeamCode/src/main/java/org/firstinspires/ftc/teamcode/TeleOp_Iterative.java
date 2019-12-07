@@ -3,8 +3,10 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.CRServoImpl;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
@@ -18,19 +20,19 @@ public class TeleOp_Iterative extends OpMode {
     public DcMotor rightDriveFwrd = null; // forward right drive motor
     public DcMotor leftDriveRear = null; //  Rear left drive motor
     public DcMotor rightDriveRear = null; // Rear right drive motor
-//    public DcMotor LiftMotor = null;
-//   public CRServo CraneRotation = null;
-//    public CRServo Grabber = null;
-
+    public DcMotor LiftMotor = null;
+    public CRServo Grabber = null;
+    public CRServo Slide;
+    public boolean a;
     public double Release = 1;
-    //public double rightDpadDrive = 0.25;
-    // public double leftDpadDrive = 0.25;
+    public double rightDpadDrive = 0.25;
+    public double leftDpadDrive = 0.25;
 
     // variables to hold the current stick positions
     public double lStickX;
     public double lStickY;
     public double rStickX;
-    public boolean left_stick_x;
+    public double r_stick_x;
     // variables to hold the respective motor speeds
     public double vRightFront;
     public double vLeftFront;
@@ -49,11 +51,13 @@ public class TeleOp_Iterative extends OpMode {
         rightDriveFwrd = hardwareMap.get(DcMotor.class, "rDriveFront");
         leftDriveRear = hardwareMap.get(DcMotor.class, "lDriveRear");
         rightDriveRear = hardwareMap.get(DcMotor.class, "rDriveRear");
+        LiftMotor = hardwareMap.get(DcMotor.class, "LiftMotor");
+        Grabber = hardwareMap.get(CRServo.class, "don't know the name");
         leftDriveFwrd.setDirection(DcMotor.Direction.REVERSE); // jwk
         rightDriveFwrd.setDirection(DcMotor.Direction.FORWARD); // jwk
         leftDriveRear.setDirection(DcMotor.Direction.REVERSE); // jwk
         rightDriveRear.setDirection(DcMotor.Direction.FORWARD); // jwk
-  //      LiftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        LiftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
     }
 
     @Override
@@ -67,20 +71,24 @@ public class TeleOp_Iterative extends OpMode {
         runtime.reset();
     }
 
+
     @Override
     public void loop() {
+
 
         // jwk: read the stick positions only once per loop
         lStickX = gamepad1.left_stick_x; // Left stick translates bot
         lStickY = -gamepad1.left_stick_y; // make forward stick positive value
         rStickX = gamepad1.right_stick_y; // Right stick rotates bot
-        //  manipulatorClawButton = gamepad2.a\
+        //r_stick_x = gamepad2.left_sticak_y;
+
 
         Double speed = Range.clip(Math.hypot(lStickX, lStickY), -1, 1); // magnitude of the stick input
         Double rotate = Range.clip(rStickX, -1, 1); // make sure right stick is withing +/-1
         Double stickAngle = Math.atan2(lStickY, lStickX); // stick angle in radians, 0 deg to right
         Double stickAngleEdge = stickAngle * 4 / Math.PI; // find the edge value of the sectorF
 //was previously eight
+
 
         //manipulatorClaw.setPosition(manPosTemp);
         // Now, determine which sector we are in based on the stick angle
@@ -165,20 +173,11 @@ public class TeleOp_Iterative extends OpMode {
 
     }
 
-//}
-
-
-//static
-
     // perform .setPower here in method. Ensures that setPower is called only once per loop()
-    public void setMotorPower ( double vRF, double vLF, double vRR, double vLR ){
+    public void setMotorPower(double vRF, double vLF, double vRR, double vLR) {
         rightDriveFwrd.setPower(vRF);
         leftDriveFwrd.setPower(vLF);
         rightDriveRear.setPower(vRR);
         leftDriveRear.setPower(vLR);
-
-
-// jwk----------------------------------------------------------------
     }
-
 }
